@@ -9,6 +9,7 @@ export let isTouchDevice = false;
 export let hasDataTransfer = false;
 export let attrGetNamedItemIsNotEnumerable = false;
 export let getElementsByNameReturnsHTMLCollection = false;
+export let isSupportsClasses = true;
 
 if (nativeMethods.createElement) {
     const form = nativeMethods.createElement.call(document, 'form');
@@ -42,4 +43,11 @@ if (nativeMethods.createElement) {
     // @ts-ignore
     getElementsByNameReturnsHTMLCollection = nativeMethods.objectGetPrototypeOf.call(window.Object, elements) ===
         nativeMethods.HTMLCollection.prototype;
+
+    try {
+        eval('class A {}')
+    }
+    catch {
+        isSupportsClasses = false;
+    }
 }

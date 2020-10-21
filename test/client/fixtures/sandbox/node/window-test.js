@@ -938,3 +938,9 @@ if (!browserUtils.isIE11) {
         });
     });
 }
+
+test('An instance of a class that extends Function should contains class methods (GH-2439)', function () {
+    eval('class A extends Function { method () {} }\n' +
+        'var instance = new A();\n' +
+        'ok(!!instance.method);');
+});

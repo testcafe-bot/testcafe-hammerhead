@@ -52,8 +52,13 @@ import constructorIsCalledWithoutNewKeyword from '../../utils/constructor-is-cal
 import INSTRUCTION from '../../../processing/script/instruction';
 import Promise from 'pinkie';
 import getMimeType from '../../utils/get-mime-type';
-import { overrideDescriptor, overrideFunction, overrideConstructor } from '../../utils/overriding';
-import { emptyActionAttrFallbacksToTheLocation } from '../../utils/feature-detection';
+import {
+    overrideDescriptor,
+    overrideFunction,
+    overrideConstructor,
+    overrideFunctionConstructor
+} from '../../utils/overriding';
+import { emptyActionAttrFallbacksToTheLocation, isSupportsClasses } from '../../utils/feature-detection';
 import { HASH_RE, isValidUrl } from '../../../utils/url';
 import UploadSandbox from '../upload';
 import { getAnchorProperty, setAnchorProperty } from '../code-instrumentation/properties/anchor';
@@ -730,16 +735,20 @@ export default class WindowSandbox extends SandboxBase {
             return image;
         });
 
-        overrideConstructor(window, 'Function', function (...args) {
-            const functionBodyArgIndex = args.length - 1;
+        if (isSupportsClasses)
+            overrideFunctionConstructor(window);
+        else {
+            overrideConstructor(window, 'Function', function (...args) {
+                const functionBodyArgIndex = args.length - 1;
 
-            if (typeof args[functionBodyArgIndex] === 'string')
-                args[functionBodyArgIndex] = processScript(args[functionBodyArgIndex], false, false, convertToProxyUrl);
+                if (typeof args[functionBodyArgIndex] === 'string')
+                    args[functionBodyArgIndex] = processScript(args[functionBodyArgIndex], false, false, convertToProxyUrl);
 
-            return nativeMethods.Function.apply(this, args);
-        }, true);
+                return nativeMethods.Function.apply(this, args);
+            }, true);
+        }
 
-        overrideFunction(window.Function.prototype, 'toString', function () {
+        overrideFunction(nativeMethods.Function.prototype, 'toString', function () {
             if (nativeMethods.objectHasOwnProperty.call(this, INTERNAL_PROPS.nativeStrRepresentation))
                 return this[INTERNAL_PROPS.nativeStrRepresentation];
 

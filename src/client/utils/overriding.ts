@@ -90,21 +90,48 @@ export function overrideFunction<O extends object, K extends keyof O> (obj: O, f
 
     if (isNativeFunction(fn)) {
         overrideStringRepresentation(wrapper, fn);
-        
+
         (obj[fnName] as unknown as Function) = wrapper;
     }
 }
 
 export function overrideConstructor<O extends object, K extends keyof O> (obj: O, fnName: K, wrapper: Function, overrideProtoConstructor: boolean = false): void {
     const nativePrototype = obj[fnName]['prototype'];
-    
+
     overrideFunction(obj, fnName, wrapper);
 
     // NOTE: restore native prototype (to make `instanceof` work as expected)
-    obj[fnName]['prototype'] = nativePrototype;
+    wrapper.prototype = nativePrototype;
 
     // NOTE: we need to override the `constructor` property of a prototype
     // because sometimes native constructor can be retrieved from it
     if (overrideProtoConstructor)
-        obj[fnName]['prototype']['constructor'] = wrapper;
+        nativePrototype.constructor = wrapper;
+}
+
+export function overrideFunctionConstructor (win: Window & typeof globalThis) {
+    const getFunctionWrapper = new nativeMethods.Function(`
+        const hammerhead = window['${INTERNAL_PROPS.hammerhead}'];
+        
+        class FunctionWrapper extends hammerhead.nativeMethods.Function {
+            constructor (...args) {
+                const functionBodyArgIndex = args.length - 1;
+
+                if (typeof args[functionBodyArgIndex] === 'string')
+                    args[functionBodyArgIndex] = hammerhead.processScript(args[functionBodyArgIndex], false, false,
+                                                                          hammerhead.utils.url.convertToProxyUrl);
+
+                super(...args);
+            }
+        }
+        
+        return FunctionWrapper;
+    `);
+
+    const functionWrapper = getFunctionWrapper();
+
+    overrideFunction(win, 'Function', functionWrapper);
+
+    functionWrapper.prototype                    = nativeMethods.Function.prototype;
+    nativeMethods.Function.prototype.constructor = functionWrapper;
 }
